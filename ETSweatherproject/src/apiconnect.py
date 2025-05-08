@@ -1,74 +1,114 @@
-class ApiConnect:
+import sys
+import csv
+import os
+import requests
+print(sys.path)
+
+class WeatherAPI:
     def __init__(self, api_key):
         self.api_key = api_key
+        self.base_url = "https://opendata.aemet.es/opendata/api"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.provincias_csv = os.path.join(base_dir, "../CSV/provincias.csv")
+        self.diccionario_csv = os.path.join(base_dir, "../CSV/diccionario24.csv")
 
-    def obtener_provincia(self):
-        provincias_path = os.path.join('CSV', 'provincias.csv')
-        provincias_df = pd.read_csv(provincias_path, delimiter=';')
+    def obtener_lista_provincias(self):
+        provincias = {}
+        with open(self.provincias_csv, mode='r', encoding='utf-8') as file:
+            reader = csv.reader(file, delimiter=';')
+            next(reader)  # Skip header
+            for row in reader:
+                cpro = int(row[0])  # Province code
+                provincia = row[1]  # Province name
+                provincias[cpro] = provincia
+        return provincias
 
-        print("Lista de provincias disponibles:")
-        for index, row in provincias_df.iterrows():
-            print(f"{row['CPRO']}: {row['NPRO']}")
+    def mostrar_provincias(self, provincias):
+        print("\nSelecciona una provincia:")
+        for idx, (cpro, provincia) in enumerate(provincias.items(), start=1):
+            print(f"{idx}. {provincia}")
 
+    def seleccionar_provincia(self, provincias):
         while True:
-            cpro = input("Por favor, introduce el código de la provincia (CPRO): ")
-            if cpro.isdigit() and int(cpro) in provincias_df['CPRO'].values:
-                provincia = provincias_df[provincias_df['CPRO'] == int(cpro)]['NPRO'].values[0]
-                print(f"Has seleccionado la provincia: {provincia}")
-                return int(cpro), provincia
-            else:
-                print("Código de provincia no válido. Inténtalo de nuevo.")
+            try:
+                provincia_idx = int(input("Introduce el número de la provincia: ")) - 1
+                if 0 <= provincia_idx < len(provincias):
+                    cpro, provincia = list(provincias.items())[provincia_idx]
+                    return cpro, provincia
+                else:
+                    print("Por favor, introduce un número válido.")
+            except ValueError:
+                print("Entrada no válida. Por favor, introduce un número.")
 
-    def obtener_municipio(self, cpro):
-        municipios_path = os.path.join('CSV', 'diccionario24.csv')
-        municipios_df = pd.read_csv(municipios_path, delimiter=';')
+    def obtener_lista_municipios(self, cpro):
+        municipios = {}
+        with open(self.diccionario_csv, mode='r', encoding='utf-8') as file:
+            reader = csv.reader(file, delimiter=';')
+            next(reader)  # Skip header
+            for row in reader:
+                if int(row[0]) == cpro:  # Match province code
+                    cmun = int(row[1])  # Municipality code
+                    municipio = row[2]  # Municipality name
+                    municipios[cmun] = municipio
+        return municipios
 
-        municipios_provincia = municipios_df[municipios_df['CPRO'] == cpro]
+    def mostrar_municipios(self, municipios):
+        print("\nMunicipios disponibles:")
+        for cmun, municipio in municipios.items():
+            print(f"{cmun:03d}, {municipio}")
 
-        print("Lista de municipios disponibles:")
-        for index, row in municipios_provincia.iterrows():
-            print(f"{row['CMUN']}: {row['NOMBRE']}")
-
+    def seleccionar_municipio(self, municipios):
         while True:
-            cmun = input("Por favor, introduce el código del municipio (CMUN): ")
-            if cmun.isdigit() and int(cmun) in municipios_provincia['CMUN'].values:
-                municipio = municipios_provincia[municipios_provincia['CMUN'] == int(cmun)]['NOMBRE'].values[0]
-                print(f"Has seleccionado el municipio: {municipio}")
-                return int(cmun), municipio
-            else:
-                print("Código de municipio no válido. Inténtalo de nuevo.")
+            try:
+                municipio_idx = int(input("\nIntroduce el código del municipio: "))
+                if municipio_idx in municipios:
+                    return municipio_idx, municipios[municipio_idx]
+                else:
+                    print("Por favor, introduce un código de municipio válido.")
+            except ValueError:
+                print("Entrada no válida. Por favor, introduce un número.")
 
-    def obtener_datos_actuales_de_municipio(self, codigo_municipio):
-        url = f'https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/diaria/{codigo_municipio}'
-        params = {'api_key': self.api_key}
-        headers = {'User-Agent': 'Mozilla/5.0'}
+    def obtener_datos_actuales_de_municipio(self, cpro, codigo_municipio):
+        # Combine province code and municipality code
+        codigo_completo = f"{cpro:02d}{codigo_municipio:03d}"
+        url = f"{self.base_url}/prediccion/especifica/municipio/diaria/{codigo_completo}"
+        headers = {
+            "accept": "application/json",
+            "api_key": self.api_key
+        }
 
         try:
-            response = requests.get(url, params=params, headers=headers)
-            if response.status_code != 200:
-                print(f"Error al obtener observaciones: {response.status_code}")
-                print(f"Respuesta del servidor: {response.text}")
-                raise Exception(f"Error al obtener observaciones: {response.status_code}")
+            # Step 1: Fetch the data from the API
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()  # Raise an error for HTTP codes 4xx/5xx
+            data = response.json()
 
-            datos_url = response.json().get('datos')
+            # Step 2: Extract the URL for the actual data
+            datos_url = data.get("datos")
             if not datos_url:
-                raise Exception("No se encontró la URL de datos meteorológicos.")
+                print("No se encontró la URL de los datos en la respuesta.")
+                return None, None
 
+            # Step 3: Fetch the actual data from the "datos" URL
             datos_response = requests.get(datos_url)
-            if datos_response.status_code != 200:
-                print(f"Error al obtener datos meteorológicos: {datos_response.status_code}")
-                print(f"Respuesta del servidor: {datos_response.text}")
-                raise Exception(f"Error al obtener datos meteorológicos: {datos_response.status_code}")
-
+            datos_response.raise_for_status()
             datos = datos_response.json()
+
+            # Step 4: Extract temperature data from the JSON
+            # Assuming the structure contains a list of days with temperature data
             if datos and isinstance(datos, list):
-                prediccion = datos[0].get('prediccion', {}).get('dia', [])
-                if prediccion:
-                    temperaturas = prediccion[0].get('temperatura', {})
-                    temp_max = temperaturas.get('maxima')
-                    temp_min = temperaturas.get('minima')
-                    return temp_max, temp_min
-            raise Exception("No se pudieron extraer las temperaturas.")
-        except Exception as e:
-            print(f"Excepción al obtener datos del municipio: {e}")
-            raise
+                prediccion = datos[0].get("prediccion", {})
+                temperaturas = prediccion.get("dia", [])[0]  # First day of prediction
+                temp_max = temperaturas.get("temperatura", {}).get("maxima", "N/A")
+                temp_min = temperaturas.get("temperatura", {}).get("minima", "N/A")
+                return temp_max, temp_min
+            else:
+                print("No se encontraron datos de predicción.")
+                return None, None
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error al obtener los datos del municipio: {e}")
+            return None, None
+        except (KeyError, IndexError) as e:
+            print(f"Error al procesar los datos del municipio: {e}")
+            return None, None
