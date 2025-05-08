@@ -1,10 +1,25 @@
 import os
 import requests
 import telebot
+from datetime import datetime
 
 # Token del bot
 BOT_TOKEN = "8158572229:AAE9j62ezMnHr3XbbZU6wnm6gtps3TbGnn8"
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# Function to send weather data to Telegram
+def send_weather_to_telegram(provincia, municipio, temp_max, temp_min):
+    chat_id = "YOUR_CHAT_ID"  # Replace with your Telegram chat ID
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    message = (
+        f"Datos del municipio:\n"
+        f"Provincia: {provincia}\n"
+        f"Municipio: {municipio}\n"
+        f"Fecha: {fecha}\n"
+        f"Temperatura máxima: {temp_max} °C\n"
+        f"Temperatura mínima: {temp_min} °C"
+    )
+    bot.send_message(chat_id, message)
 
 # Comando /start o /hello
 @bot.message_handler(commands=['start', 'hello'])
@@ -22,5 +37,6 @@ def echo_all(message):
     bot.reply_to(message, f"Recibí tu mensaje: {message.text}")
 
 # Inicia el bot
-print("El bot está funcionando...")
-bot.infinity_polling()
+if __name__ == "__main__":
+    print("El bot está funcionando...")
+    bot.infinity_polling()
