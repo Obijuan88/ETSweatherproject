@@ -9,7 +9,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 # Function to send weather data to Telegram
 def send_weather_to_telegram(provincia, municipio, temp_max, temp_min):
-    chat_id = "YOUR_CHAT_ID"  # Replace with your Telegram chat ID
+    chat_id = "473053437"  # Replace with your Telegram chat ID
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message = (
         f"Datos del municipio:\n"
@@ -31,10 +31,12 @@ def send_welcome(message):
 def send_weather(message):
     bot.reply_to(message, "Por favor, dime el código del municipio para obtener el clima.")
 
-# Manejo de mensajes de texto
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, f"Recibí tu mensaje: {message.text}")
+# # Manejo de mensajes de texto
+# @bot.message_handler(func=lambda message: True)
+# def echo_all(message):
+#     chat_id = message.chat.id
+#     print(f"Chat ID: {chat_id}")  # Imprime el chat_id en la consola
+#     bot.reply_to(message, f"Tu chat ID es: {chat_id}")
 
 # Inicia el bot
 if __name__ == "__main__":
