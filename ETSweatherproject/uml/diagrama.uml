@@ -1,0 +1,40 @@
+@startuml
+skinparam defaultFontName "Times New Roman"
+
+class WeatherDataFetcher {
+  +fetchData(location: String): RawData
+}
+
+class DataParser {
+  +parse(rawData: RawData): ParsedData
+}
+
+class DataVisualizer {
+  +generateChart(data: ParsedData): Chart
+  +generateMap(data: ParsedData): Map
+}
+
+class ConfigManager {
+  +getConfig(param: String): String
+}
+
+class Logger {
+  +log(message: String): void
+  +error(message: String): void
+}
+
+class MainApp {
+  -fetcher: WeatherDataFetcher
+  -parser: DataParser
+  -visualizer: DataVisualizer
+  -config: ConfigManager
+  -logger: Logger
+  +run(): void
+}
+
+MainApp --> WeatherDataFetcher
+MainApp --> DataParser
+MainApp --> DataVisualizer
+MainApp --> ConfigManager
+MainApp --> Logger
+@enduml
