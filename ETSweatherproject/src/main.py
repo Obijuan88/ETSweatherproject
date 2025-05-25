@@ -2,7 +2,7 @@ from apiconnect import WeatherAPI
 from telegrambot import send_weather_to_telegram
 
 def main():
-    API_KEY = 'your_api_key_here'  # Replace with your actual API key
+    API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqdWFuLmFsZWphbmRyby5oaEBnbWFpbC5jb20iLCJqdGkiOiI1NGFlMzYzMC0wMzdmLTQ0NzMtYTFlYy1jMDk4NzY5ZTk2OGMiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTc0NjIxMjM0NCwidXNlcklkIjoiNTRhZTM2MzAtMDM3Zi00NDczLWExZWMtYzA5ODc2OWU5NjhjIiwicm9sZSI6IiJ9.wSrXhd45UFgntTyCeRlPrDv9EqBsZIJdgcUH9qkyLQk'  # Replace with your actual API key
     weather_api = WeatherAPI(API_KEY)
 
     print("Bienvenido al sistema de selección de provincias y municipios.")
