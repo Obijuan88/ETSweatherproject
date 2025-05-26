@@ -1,7 +1,9 @@
+import os
 import sqlite3
 from datetime import datetime
 
-DB_PATH = "weather_data.db"
+# Cambia la ruta aquí:
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../BBDD/weather.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -9,22 +11,68 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS temperature_queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            temperature_min TEXT,
-            temperature_max REAL,
-            city TEXT,
-            timestamp TEXT
+            chat_id INTEGER,
+            temp_min REAL,
+            temp_max REAL,
+            location TEXT,
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            chat_id INTEGER PRIMARY KEY,
+            cpro TEXT,
+            municipio_code TEXT,
+            provincia TEXT,
+            municipio TEXT
         )
     ''')
     conn.commit()
     conn.close()
 
-def save_temperature_query(user_id, username, temperature, city):
+def save_temperature_query(chat_id, temp_min, temp_max, location):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''
-        INSERT INTO temperature_queries (user_id, temperature_min, temperature_max, city, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (user_id, username, temperature, city, datetime.now().isoformat()))
+        INSERT INTO temperature_queries (chat_id, temp_min, temp_max, location)
+        VALUES (?, ?, ?, ?)
+    ''', (chat_id, temp_min, temp_max, location))
     conn.commit()
     conn.close()
+
+def save_subscription(chat_id, cpro, municipio_code, provincia, municipio):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO subscriptions (chat_id, cpro, municipio_code, provincia, municipio)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (chat_id, cpro, municipio_code, provincia, municipio))
+    conn.commit()
+    conn.close()
+
+def remove_subscription(chat_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('DELETE FROM subscriptions WHERE chat_id = ?', (chat_id,))
+    conn.commit()
+    conn.close()
+
+def get_all_subscriptions():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT chat_id, cpro, municipio_code, provincia, municipio FROM subscriptions')
+    subs = c.fetchall()
+    conn.close()
+    return subs
+
+def send_updates_to_subscribers():
+    weather_api = WeatherAPI(API_KEY)
+    subs = get_all_subscriptions()
+    print(f"Suscripciones encontradas: {subs}")  # <-- Añade esto
+    for chat_id, cpro, municipio_code, provincia, municipio in subs:
+        try:
+            temp_max, temp_min = weather_api.obtener_datos_actuales_de_municipio(int(cpro), int(municipio_code))
+            print(f"Enviando a {chat_id}: {provincia}, {municipio}, {temp_max}, {temp_min}")  # <-- Añade esto
+            send_weather_to_telegram(chat_id, provincia, municipio, temp_max, temp_min)
+        except Exception as e:
+            print(f"Error enviando a {chat_id}: {e}")
