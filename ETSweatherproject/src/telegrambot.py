@@ -1,12 +1,12 @@
 import sys
 import os
+import telebot
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import csv
-import telebot
 from apiconnect import WeatherAPI
 from datetime import datetime
-from bbdd import save_temperature_query, init_db
+from bbdd import save_temperature_query, init_db, save_subscription
 
 # Token del bot
 BOT_TOKEN = "8158572229:AAE9j62ezMnHr3XbbZU6wnm6gtps3TbGnn8"
@@ -71,6 +71,44 @@ def send_welcome(message):
     bot.send_message(chat_id, "Selecciona una provincia (escribe el código):\n" + options)
     user_data[chat_id] = {'provincias': provincias}
 
+# Comando /sub
+@bot.message_handler(commands=['sub'])
+def handle_subscribe(message):
+    chat_id = message.chat.id
+    if chat_id not in user_data or 'provincias' not in user_data[chat_id]:
+        bot.send_message(chat_id, "Primero debes iniciar con /start y seleccionar una provincia.")
+        return
+
+    # Si ya ha seleccionado municipio y provincia
+    if 'cpro' in user_data[chat_id] and 'municipios' in user_data[chat_id] and 'municipio_code' in user_data[chat_id]:
+        provincia = user_data[chat_id]['provincia']
+        municipio_code = user_data[chat_id]['municipio_code']
+        municipio = user_data[chat_id]['municipios'][municipio_code]
+        bot.send_message(
+            chat_id,
+            f"¿Quieres suscribirte a las actualizaciones del municipio {municipio} ({provincia})? Responde 'sí' para confirmar."
+        )
+        user_data[chat_id]['pending_sub'] = True  # Marcamos que está pendiente de confirmar
+    elif 'cpro' in user_data[chat_id]:
+        bot.send_message(chat_id, "Selecciona primero un municipio antes de suscribirte.")
+    else:
+        bot.send_message(chat_id, "Selecciona primero una provincia y un municipio antes de suscribirte.")
+
+# Manejo de confirmación de suscripción
+@bot.message_handler(func=lambda msg: msg.text.lower() == 'sí' or msg.text.lower() == 'si')
+def confirm_subscription(message):
+    chat_id = message.chat.id
+    if chat_id in user_data and user_data[chat_id].get('pending_sub'):
+        cpro = user_data[chat_id]['cpro']
+        municipio_code = user_data[chat_id]['municipio_code']
+        provincia = user_data[chat_id]['provincia']
+        municipio = user_data[chat_id]['municipios'][municipio_code]
+        save_subscription(chat_id, cpro, municipio_code, provincia, municipio)
+        bot.send_message(chat_id, f"Te has suscrito a las actualizaciones del municipio {municipio} ({provincia}).")
+        user_data[chat_id].pop('pending_sub', None)
+    else:
+        bot.send_message(chat_id, "No hay ninguna suscripción pendiente de confirmar.")
+
 # Manejo de selección de provincia y municipio
 @bot.message_handler(func=lambda msg: msg.text.isdigit())
 def handle_selection(message):
@@ -98,10 +136,12 @@ def handle_selection(message):
             if municipio_code in municipios:
                 municipio = municipios[municipio_code]
                 cpro = user_data[chat_id]['cpro']
+                user_data[chat_id]['municipio_code'] = municipio_code  # <-- Añade esta línea
                 weather_api = WeatherAPI(API_KEY)
                 temp_max, temp_min = weather_api.obtener_datos_actuales_de_municipio(int(cpro), int(municipio_code))
                 send_weather_to_telegram(chat_id, user_data[chat_id]['provincia'], municipio, temp_max, temp_min)
-                user_data.pop(chat_id)
+                # NO elimines user_data[chat_id] aquí, así el usuario podrá suscribirse después
+                # user_data.pop(chat_id)
             else:
                 bot.send_message(chat_id, "Código de municipio no válido. Intenta nuevamente.")
 
