@@ -17,7 +17,8 @@ def send_weather_to_telegram(chat_id, provincia, municipio, temp_max, temp_min):
         f"Municipio: {municipio}\n"
         f"Fecha: {fecha}\n"
         f"Temperatura máxima: {temp_max} °C\n"
-        f"Temperatura mínima: {temp_min} °C"
+        f"Temperatura mínima: {temp_min} °C\n"
+        f"Temperatura media:  {(temp_max + temp_min)/2} °C\n"
     )
     bot.send_message(chat_id, message)
     save_temperature_query(chat_id, temp_min, temp_max, f"{municipio}, {provincia}")
