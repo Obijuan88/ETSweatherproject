@@ -1,0 +1,5 @@
+requests
+pandas
+pyTelegramBotAPI
+python-decouple
+sqlite3

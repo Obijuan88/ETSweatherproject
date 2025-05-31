@@ -1,8 +1,10 @@
 from apiconnect import WeatherAPI
 from telegrambot import send_weather_to_telegram
+import csv
+from decouple import config
 
 def main():
-    API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqdWFuLmFsZWphbmRyby5oaEBnbWFpbC5jb20iLCJqdGkiOiI1NGFlMzYzMC0wMzdmLTQ0NzMtYTFlYy1jMDk4NzY5ZTk2OGMiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTc0NjIxMjM0NCwidXNlcklkIjoiNTRhZTM2MzAtMDM3Zi00NDczLWExZWMtYzA5ODc2OWU5NjhjIiwicm9sZSI6IiJ9.wSrXhd45UFgntTyCeRlPrDv9EqBsZIJdgcUH9qkyLQk'  # Replace with your actual API key
+    API_KEY = config
     weather_api = WeatherAPI(API_KEY)
 
     print("Bienvenido al sistema de selección de provincias y municipios.")
@@ -11,6 +13,7 @@ def main():
     provincias = weather_api.obtener_lista_provincias()
     weather_api.mostrar_provincias(provincias)
     cpro, provincia = weather_api.seleccionar_provincia(provincias)
+    cpro = str(cpro).zfill(2)  # Convierte cpro a cadena antes de aplicar zfill
 
     # Fetch and display municipalities
     municipios = weather_api.obtener_lista_municipios(cpro)
@@ -21,7 +24,7 @@ def main():
     cmun, municipio = weather_api.seleccionar_municipio(municipios)
 
     # Fetch and display weather data
-    codigo_municipio = f"{cpro:02d}{cmun:03d}"
+    codigo_municipio = f"{int(cpro):02d}{int(cmun):03d}"  # Convierte cpro y cmun a enteros antes de aplicar el formato
     print(f"\nHas seleccionado la provincia '{provincia}' y el municipio '{municipio}'.")
     print(f"Código del municipio seleccionado: {codigo_municipio}")
 

@@ -1,8 +1,10 @@
 import sys
-import csv
 import os
+from datetime import datetime
+import csv
 import requests
-print(sys.path)
+import json
+import time
 
 class WeatherAPI:
     def __init__(self, api_key):
@@ -42,73 +44,66 @@ class WeatherAPI:
 
     def obtener_lista_municipios(self, cpro):
         municipios = {}
-        with open(self.diccionario_csv, mode='r', encoding='utf-8') as file:
-            reader = csv.reader(file, delimiter=';')
-            next(reader)  # Skip header
-            for row in reader:
-                if int(row[0]) == cpro:  # Match province code
-                    cmun = int(row[1])  # Municipality code
-                    municipio = row[2]  # Municipality name
-                    municipios[cmun] = municipio
+        #print(f"[DEBUG] Cargando municipios para la provincia: {cpro}")
+        try:
+            with open(self.diccionario_csv, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file, delimiter=';')
+                next(reader)  # Skip header
+                for row in reader:
+                    if row[0].zfill(2) == cpro:
+                        municipios[row[1].zfill(3)] = row[2]
+            #print(f"[DEBUG] Municipios cargados: {municipios}")
+        except FileNotFoundError:
+            print("[ERROR] El archivo diccionario24.csv no se encontró.")
+        except Exception as e:
+            print(f"[ERROR] Error al cargar municipios: {e}")
         return municipios
 
     def mostrar_municipios(self, municipios):
-        print("\nMunicipios disponibles:")
+        print("Municipios disponibles:")
         for cmun, municipio in municipios.items():
-            print(f"{cmun:03d}, {municipio}")
+            print(f"{int(cmun):03d}, {municipio}")  # Convierte cmun a entero antes de aplicar :03d
 
     def seleccionar_municipio(self, municipios):
+        #print(f"[DEBUG] Municipios disponibles: {municipios}")
         while True:
-            try:
-                municipio_idx = int(input("\nIntroduce el código del municipio: "))
-                if municipio_idx in municipios:
-                    return municipio_idx, municipios[municipio_idx]
-                else:
-                    print("Por favor, introduce un código de municipio válido.")
-            except ValueError:
-                print("Entrada no válida. Por favor, introduce un número.")
+            cmun = input("Introduce el código del municipio: ").zfill(3)
+            #print(f"[DEBUG] Código ingresado: {cmun}")
+            if cmun in municipios:
+                return cmun, municipios[cmun]
+            print("Por favor, introduce un código de municipio válido.")
 
     def obtener_datos_actuales_de_municipio(self, cpro, codigo_municipio):
-        # Combine province code and municipality code
-        codigo_completo = f"{cpro:02d}{codigo_municipio:03d}"
-        url = f"{self.base_url}/prediccion/especifica/municipio/diaria/{codigo_completo}"
-        headers = {
-            "accept": "application/json",
-            "api_key": self.api_key
-        }
-
         try:
-            # Step 1: Fetch the data from the API
+            codigo_completo = f"{int(cpro):02d}{int(codigo_municipio):03d}"
+            url = f"{self.base_url}/prediccion/especifica/municipio/diaria/{codigo_completo}"
+            headers = {
+                "accept": "application/json",
+                "api_key": self.api_key
+            }
             response = requests.get(url, headers=headers)
-            response.raise_for_status()  # Raise an error for HTTP codes 4xx/5xx
+            response.raise_for_status()
             data = response.json()
-
-            # Step 2: Extract the URL for the actual data
+            
+            # Procesar los datos obtenidos
             datos_url = data.get("datos")
             if not datos_url:
-                print("No se encontró la URL de los datos en la respuesta.")
+                print("[ERROR] No se encontró la URL de los datos en la respuesta.")
                 return None, None
-
-            # Step 3: Fetch the actual data from the "datos" URL
+            
             datos_response = requests.get(datos_url)
             datos_response.raise_for_status()
             datos = datos_response.json()
-
-            # Step 4: Extract temperature data from the JSON
-            # Assuming the structure contains a list of days with temperature data
+            
             if datos and isinstance(datos, list):
                 prediccion = datos[0].get("prediccion", {})
-                temperaturas = prediccion.get("dia", [])[0]  # First day of prediction
-                temp_max = temperaturas.get("temperatura", {}).get("maxima", "N/A")
-                temp_min = temperaturas.get("temperatura", {}).get("minima", "N/A")
+                temperaturas = prediccion.get("dia", [])[0]
+                temp_max = temperaturas.get("temperatura", {}).get("maxima", None)
+                temp_min = temperaturas.get("temperatura", {}).get("minima", None)
                 return temp_max, temp_min
             else:
-                print("No se encontraron datos de predicción.")
+                print("[ERROR] No se encontraron datos de predicción.")
                 return None, None
-
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener los datos del municipio: {e}")
-            return None, None
-        except (KeyError, IndexError) as e:
-            print(f"Error al procesar los datos del municipio: {e}")
+            print(f"[ERROR] Error al obtener los datos del municipio: {e}")
             return None, None
