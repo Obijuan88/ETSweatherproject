@@ -1,8 +1,9 @@
 import sys
 import os
 import telebot
-from telebot import types
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import decouple
+from decouple import config
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import csv
@@ -11,7 +12,7 @@ from datetime import datetime
 from bbdd import save_temperature_query, init_db, save_subscription, remove_subscription, is_user_subscribed
 
 # Token del bot
-BOT_TOKEN = "8158572229:AAE9j62ezMnHr3XbbZU6wnm6gtps3TbGnn8"
+BOT_TOKEN = config('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # API Key de AEMET

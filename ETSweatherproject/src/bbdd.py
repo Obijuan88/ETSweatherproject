@@ -103,3 +103,19 @@ def get_last_temperatures_for_municipio(chat_id, municipio):
     if row:
         return row  # (temp_max, temp_min)
     return None
+
+def get_last_temperatures(chat_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT temp_max, temp_min
+        FROM temperature_queries
+        WHERE chat_id = ?
+        ORDER BY date DESC
+        LIMIT 1
+    ''', (chat_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return row  # Devuelve (temp_max, temp_min)
+    return None  # Si no hay datos, devuelve None
