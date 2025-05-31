@@ -1,12 +1,14 @@
 import sys
 import os
 import telebot
+from telebot import types
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import csv
 from apiconnect import WeatherAPI
 from datetime import datetime
-from bbdd import save_temperature_query, init_db, save_subscription
+from bbdd import save_temperature_query, init_db, save_subscription, remove_subscription, is_user_subscribed
 
 # Token del bot
 BOT_TOKEN = "8158572229:AAE9j62ezMnHr3XbbZU6wnm6gtps3TbGnn8"
@@ -79,35 +81,77 @@ def handle_subscribe(message):
         bot.send_message(chat_id, "Primero debes iniciar con /start y seleccionar una provincia.")
         return
 
-    # Si ya ha seleccionado municipio y provincia
     if 'cpro' in user_data[chat_id] and 'municipios' in user_data[chat_id] and 'municipio_code' in user_data[chat_id]:
         provincia = user_data[chat_id]['provincia']
         municipio_code = user_data[chat_id]['municipio_code']
         municipio = user_data[chat_id]['municipios'][municipio_code]
+        markup = InlineKeyboardMarkup()
+        markup.add(
+            InlineKeyboardButton("Notificación diaria", callback_data="sub_diaria"),
+            InlineKeyboardButton("Notificación solo si cambia temperatura", callback_data="sub_cambio")
+        )
         bot.send_message(
             chat_id,
-            f"¿Quieres suscribirte a las actualizaciones del municipio {municipio} ({provincia})? Responde 'sí' para confirmar."
+            f"¿Cómo quieres recibir las notificaciones para {municipio} ({provincia})?",
+            reply_markup=markup
         )
-        user_data[chat_id]['pending_sub'] = True  # Marcamos que está pendiente de confirmar
+        user_data[chat_id]['pending_sub'] = True
     elif 'cpro' in user_data[chat_id]:
         bot.send_message(chat_id, "Selecciona primero un municipio antes de suscribirte.")
     else:
         bot.send_message(chat_id, "Selecciona primero una provincia y un municipio antes de suscribirte.")
 
-# Manejo de confirmación de suscripción
-@bot.message_handler(func=lambda msg: msg.text.lower() == 'sí' or msg.text.lower() == 'si')
-def confirm_subscription(message):
-    chat_id = message.chat.id
+@bot.callback_query_handler(func=lambda call: call.data in ["sub_diaria", "sub_cambio"])
+def callback_confirm_subscription(call):
+    chat_id = call.message.chat.id
     if chat_id in user_data and user_data[chat_id].get('pending_sub'):
         cpro = user_data[chat_id]['cpro']
         municipio_code = user_data[chat_id]['municipio_code']
         provincia = user_data[chat_id]['provincia']
         municipio = user_data[chat_id]['municipios'][municipio_code]
-        save_subscription(chat_id, cpro, municipio_code, provincia, municipio)
-        bot.send_message(chat_id, f"Te has suscrito a las actualizaciones del municipio {municipio} ({provincia}).")
+        if call.data == "sub_diaria":
+            tipo = "diaria"
+            save_subscription(chat_id, cpro, municipio_code, provincia, municipio, tipo)
+            bot.edit_message_text(
+                f"Te has suscrito a notificaciones diarias para {municipio} ({provincia}).",
+                chat_id=chat_id,
+                message_id=call.message.message_id
+            )
+        else:
+            tipo = "cambio"
+            save_subscription(chat_id, cpro, municipio_code, provincia, municipio, tipo)
+            bot.edit_message_text(
+                f"Te has suscrito a notificaciones solo si cambia la temperatura máxima o mínima para {municipio} ({provincia}).",
+                chat_id=chat_id,
+                message_id=call.message.message_id
+            )
         user_data[chat_id].pop('pending_sub', None)
     else:
-        bot.send_message(chat_id, "No hay ninguna suscripción pendiente de confirmar.")
+        bot.answer_callback_query(call.id, "No hay ninguna suscripción pendiente de confirmar.")
+
+# Comando /unsub
+@bot.message_handler(commands=['unsub'])
+def handle_unsubscribe(message):
+    chat_id = message.chat.id
+    sub_info = is_user_subscribed(chat_id)
+    if sub_info:
+        provincia, municipio = sub_info
+        remove_subscription(chat_id)
+        bot.send_message(chat_id, f"Tu suscripción al municipio {municipio} ({provincia}) ha sido eliminada. Si quieres volver a suscribirte, usa /sub.")
+    else:
+        bot.send_message(chat_id, "No tienes ninguna suscripción activa para eliminar. Usa /sub para suscribirte a un municipio.")
+
+# Comando /help
+@bot.message_handler(commands=['help', 'hepl'])
+def send_help(message):
+    help_text = (
+        "Comandos disponibles:\n"
+        "/start - Inicia la selección de provincia y municipio\n"
+        "/sub - Suscríbete a las actualizaciones del municipio seleccionado\n"
+        "/unsub - Elimina tu suscripción actual\n"
+        "/help - Muestra este mensaje de ayuda\n"
+    )
+    bot.send_message(message.chat.id, help_text)
 
 # Manejo de selección de provincia y municipio
 @bot.message_handler(func=lambda msg: msg.text.isdigit())
@@ -125,8 +169,19 @@ def handle_selection(message):
                 municipios = obtener_lista_municipios(cpro)
                 user_data[chat_id]['municipios'] = municipios
 
-                options = '\n'.join([f"{codigo}. {nombre}" for codigo, nombre in municipios.items()])
-                bot.send_message(chat_id, f"Provincia seleccionada: {provincias[cpro]}. Ahora elige un municipio (escribe el código):\n" + options)
+                # Código para enviar la lista de municipios en varios mensajes
+                options_list = [f"{codigo}. {nombre}" for codigo, nombre in municipios.items()]
+                max_len = 4000  # Un poco menos de 4096 para dejar margen al texto fijo
+                mensaje_base = f"Provincia seleccionada: {provincias[cpro]}. Ahora elige un municipio (escribe el código):\n"
+
+                mensaje = mensaje_base
+                for option in options_list:
+                    if len(mensaje) + len(option) + 1 > max_len:
+                        bot.send_message(chat_id, mensaje)
+                        mensaje = ""
+                    mensaje += option + "\n"
+                if mensaje:
+                    bot.send_message(chat_id, mensaje)
             else:
                 bot.send_message(chat_id, "Por favor selecciona una provincia válida (código completo).")
         # Si el usuario está seleccionando municipio
