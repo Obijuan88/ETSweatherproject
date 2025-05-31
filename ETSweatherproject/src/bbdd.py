@@ -24,7 +24,8 @@ def init_db():
             cpro TEXT,
             municipio_code TEXT,
             provincia TEXT,
-            municipio TEXT
+            municipio TEXT,
+            tipo TEXT DEFAULT 'diaria'
         )
     ''')
     conn.commit()
@@ -40,13 +41,13 @@ def save_temperature_query(chat_id, temp_min, temp_max, location):
     conn.commit()
     conn.close()
 
-def save_subscription(chat_id, cpro, municipio_code, provincia, municipio):
+def save_subscription(chat_id, cpro, municipio_code, provincia, municipio, tipo):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''
-        INSERT OR REPLACE INTO subscriptions (chat_id, cpro, municipio_code, provincia, municipio)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (chat_id, cpro, municipio_code, provincia, municipio))
+        INSERT OR REPLACE INTO subscriptions (chat_id, cpro, municipio_code, provincia, municipio, tipo)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (chat_id, cpro, municipio_code, provincia, municipio, tipo))
     conn.commit()
     conn.close()
 
@@ -60,7 +61,7 @@ def remove_subscription(chat_id):
 def get_all_subscriptions():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('SELECT chat_id, cpro, municipio_code, provincia, municipio FROM subscriptions')
+    c.execute('SELECT chat_id, cpro, municipio_code, provincia, municipio, tipo FROM subscriptions')
     subs = c.fetchall()
     conn.close()
     return subs
@@ -76,3 +77,29 @@ def send_updates_to_subscribers():
             send_weather_to_telegram(chat_id, provincia, municipio, temp_max, temp_min)
         except Exception as e:
             print(f"Error enviando a {chat_id}: {e}")
+
+def is_user_subscribed(chat_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT provincia, municipio FROM subscriptions WHERE chat_id = ?', (chat_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return row  # (provincia, municipio)
+    return None
+
+def get_last_temperatures_for_municipio(chat_id, municipio):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT temp_max, temp_min
+        FROM temperature_queries
+        WHERE chat_id = ? AND location LIKE ?
+        ORDER BY date DESC
+        LIMIT 1
+    ''', (chat_id, f"%{municipio}%"))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return row  # (temp_max, temp_min)
+    return None
