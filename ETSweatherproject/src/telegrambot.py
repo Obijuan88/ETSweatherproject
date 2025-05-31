@@ -5,9 +5,9 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import decouple
 from decouple import config
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-import csv
+import apiconnect
 from apiconnect import WeatherAPI
+import csv
 from datetime import datetime
 from bbdd import save_temperature_query, init_db, save_subscription, remove_subscription, is_user_subscribed
 
@@ -16,8 +16,7 @@ BOT_TOKEN = config('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # API Key de AEMET
-API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqdWFuLmFsZWphbmRyby5oaEBnbWFpbC5jb20iLCJqdGkiOiI1NGFlMzYzMC0wMzdmLTQ0NzMtYTFlYy1jMDk4NzY5ZTk2OGMiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTc0NjIxMjM0NCwidXNlcklkIjoiNTRhZTM2MzAtMDM3Zi00NDczLWExZWMtYzA5ODc2OWU5NjhjIiwicm9sZSI6IiJ9.wSrXhd45UFgntTyCeRlPrDv9EqBsZIJdgcUH9qkyLQk'
-
+API_KEY = config('API_KEY')
 base_dir = os.path.dirname(os.path.abspath(__file__))
 provincias_csv = os.path.join(base_dir, "../CSV/provincias.csv")
 municipios_csv = os.path.join(base_dir, "../CSV/diccionario24.csv")
@@ -40,12 +39,20 @@ def obtener_lista_provincias():
 # Función para cargar los municipios desde el CSV respetando códigos
 def obtener_lista_municipios(cpro):
     municipios = {}
-    with open(municipios_csv, mode='r', encoding='utf-8') as file:
-        reader = csv.reader(file, delimiter=';')
-        next(reader)
-        for row in reader:
-            if row[0].zfill(2) == cpro:
-                municipios[row[1].zfill(3)] = row[2]
+    #print(f"[DEBUG] Cargando municipios para la provincia: {cpro}")
+    try:
+        with open(municipios_csv, mode='r', encoding='utf-8') as file:
+            reader = csv.reader(file, delimiter=';')
+            next(reader)  # Saltar la cabecera si existe
+            for row in reader:
+                #print(f"[DEBUG] Leyendo fila: {row}")  # Depuración
+                if row[0].zfill(2) == cpro:
+                    municipios[row[1].zfill(3)] = row[2]
+        #print(f"[DEBUG] Municipios cargados: {municipios}")
+    except FileNotFoundError:
+        print("[ERROR] El archivo diccionario24.csv no se encontró.")
+    except Exception as e:
+        print(f"[ERROR] Error al cargar municipios: {e}")
     return municipios
 
 # Función para enviar los datos meteorológicos
