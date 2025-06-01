@@ -57,11 +57,15 @@ ETSweatherproject
    ```bash
    cd ETSweatherproject/Docker
    ```
-4. Construye y ejecuta el contenedor:
+4. Instala las dependencias necesarias para el contenedor:
+   ```bash
+   pip install -r requirements.txt
+   ```
+5. Construye y ejecuta el contenedor utilizando Docker Compose:
    ```bash
    docker-compose up --build
    ```
-5. Una vez que el contenedor esté en ejecución, puedes interactuar con la aplicación desde el terminal o mediante los scripts disponibles.
+6. Una vez que el contenedor esté en ejecución, puedes interactuar con la aplicación desde el terminal o mediante los scripts disponibles en la carpeta Docker, como `start.sh` para iniciar servicios o `cronjob` para tareas programadas.
 
 ## Uso
 ### Obtener Datos Meteorológicos
