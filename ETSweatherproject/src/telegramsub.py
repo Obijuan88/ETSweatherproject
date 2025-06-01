@@ -7,11 +7,7 @@ from datetime import datetime
 from apiconnect import WeatherAPI
 
 # Definir DB_PATH
-DB_PATH = config('DB_PATH', default=os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'BBDD',
-    'weather.db'
-))
+DB_PATH = config('DB_PATH', default='/app/ETSweatherproject/BBDD/weather.db')
 
 # Inicializar la base de datos
 init_db()
