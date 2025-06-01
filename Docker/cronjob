@@ -1,0 +1,4 @@
+# Cron job to execute telegramsub.py every minute
+* * * * * python /app/ETSweatherproject/src/telegramsub.py >> /var/log/etsweather.log 2>&1
+* * * * * echo "Hola mundo"
+ 
