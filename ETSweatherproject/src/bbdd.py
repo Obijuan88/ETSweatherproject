@@ -16,7 +16,7 @@ def send_weather_to_telegram(chat_id, provincia, municipio, temp_max, temp_min):
     print(f"[Telegram] ChatID: {chat_id} | {provincia}, {municipio} | Max: {temp_max}°C, Min: {temp_min}°C")
 
 # Cambia la ruta aquí:
-DB_PATH = config('DB_PATH')
+DB_PATH = config('DB_PATH', default='/app/ETSweatherproject/BBDD/weather.db')
 
 def init_db():
     try:
