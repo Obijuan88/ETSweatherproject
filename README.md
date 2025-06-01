@@ -67,17 +67,24 @@ ETSweatherproject
 ### Obtener Datos Meteorológicos
 1. Ejecuta la aplicación:
    ```bash
-   python src/main.py
+   python src/telegrambot.py
    ```
 2. Sigue las instrucciones para seleccionar una provincia y un municipio.
 3. La aplicación mostrará las temperaturas máximas y mínimas actuales del municipio seleccionado.
 
-### Actualizar Datos de Temperatura
-1. Ejecuta el script de actualización de la base de datos:
+### Gestión de Suscripciones de Telegram
+1. Ejecuta el archivo para gestionar suscripciones:
    ```bash
-   python src/bbdd.py
+   python src/telegramsub.py
    ```
-2. Este script ajustará la fecha (restando un día) y disminuirá la temperatura mínima en 2 grados en la tabla `temperature_queries`.
+2. Este archivo permite administrar las suscripciones de los usuarios a notificaciones meteorológicas a través de Telegram.
+
+### Funcionalidad de los Archivos Python
+- **apiconnect.py**: Contiene funciones para obtener datos de provincias y municipios desde archivos CSV y para recuperar datos meteorológicos utilizando la API de AEMET Open Data.
+- **bbdd.py**: Proporciona funciones para interactuar con la base de datos SQLite, incluyendo la actualización de datos meteorológicos.
+- **telegrambot.py**: Implementa un bot de Telegram que permite a los usuarios consultar datos meteorológicos directamente desde la plataforma.
+- **telegramsub.py**: Gestiona las suscripciones de los usuarios para recibir notificaciones meteorológicas a través de Telegram.
+- **utils/data_loader.py**: Contiene funciones utilitarias para cargar y procesar datos desde archivos CSV.
 
 ## Dependencias
 - `requests`: Para realizar solicitudes HTTP a la API de AEMET Open Data.
